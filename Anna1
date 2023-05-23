@@ -1,0 +1,69 @@
+double fib(unsigned n)
+{
+  static const unsigned N = 1500;
+  thread_local static double value[N] = { 0., 1. };
+  thread_local static bool stored[N] = { true, true };
+
+  if (N <= n)
+    return HUGE_VAL;
+  
+  if (stored[n])
+    return value[n];
+
+  stored[n] = true;
+  return value[n] = fib(n - 1) + fib(n - 2);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Проверочный код.
+
+// Вариант fib, не использующий глобальную память.
+// Используется для тестирования варианта fib, приведённого выше.
+double reference_fib(unsigned n)
+{
+  double a = 0., b = 1.;
+  while (n--)
+  {
+    const auto sum = a + b;
+    a = b;
+    b = sum;
+  }
+  return a;
+}
+
+#include <iostream>
+#include <thread>
+#include <random>
+using namespace std;
+
+int main()
+{
+  void thread_body(unsigned);
+  // Создать три нити исполнения, которые будут вычислять разные значения fib
+  // и сравнивать с результатом reference_fib.
+  thread a(thread_body, 1), b(thread_body, 2), c(thread_body, 3);
+  // Дождаться завершения вычислений.
+  a.join();
+  b.join();
+  c.join();
+  // Задержка экрана.
+  cin.ignore();
+  return EXIT_SUCCESS;
+}
+
+// Код, выполняемый параллельно.
+void thread_body(unsigned tid)
+{
+  random_device seed_gen; // генератор случайного зерна
+  mt19937_64 rng(seed_gen() + tid); // генератор псевдослучайных целых чисел
+  uniform_int_distribution<> ud(0, 1501); // генератор равномерно распределённых в [0, 1501] целых чисел
+  for (int rounds = 1000; rounds--;)
+  {
+    const auto n = ud(rng); // следующий псевдослучайный аргумент fib
+    if (fib(n) != reference_fib(n)) // проверить корректность вычисления
+      return (void)cout.put('0'); // ошибка
+  }
+
+  cout.put('1'); // все раунды успешны
+}
